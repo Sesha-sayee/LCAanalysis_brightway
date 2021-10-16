@@ -8,10 +8,13 @@ import os
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
+
+#importing Brightway LCA framework
 import brightway2 as bw
 from brightway2 import *
 from bw2data.parameters import ActivityParameter, DatabaseParameter, ProjectParameter, Group
-bw.databases
+bw.databases #printing out databases imported in brightway 
+
 #importing FORWAST database
 
 import requests
@@ -20,60 +23,6 @@ from eight import *
 import os
 import brightway2 as bw2
 from pathlib import Path
-
-#!/usr/bin/env python3
-# -*- coding: utf-8 -*-
-"""
-Created on Mon Sep 21 21:37:00 2020
-
-@author: Seshasayee
-"""
-global solid_handling_choice 
-solid_handling_choice = 1 #1 - yes, 0 - no
-global BPA_purification_choice
-BPA_purification_choice = 0 #1 - yes, 0 - no
-global carbon_sequestration_choice
-carbon_sequestration_choice = 1 #1 - yes, 0 - no
-
-from bw2data.ia_data_store import ImpactAssessmentDataStore
-from brightway2 import methods, Method, Database
-
-class QuickMethod (ImpactAssessmentDataStore):
-    
-    _metadata = methods
-
-    def __init__(self, name):
-        self.name = name
-
-    def _write(self, data, process=True):
-        """Serialize intermediate data to disk. Sets the metadata key ``num_cfs`` automatically.From bw2; """
-        self.metadata[u"num_cfs"] = len(data)
-        self._metadata.flush()
-        super(Method, self).write(data)
-        
-    def characterization_factor(self):
-        """A method to find characterization factors of a lcia method"""
-        CFs=[]
-        for key, cf in super(QuickMethod, self).load():
-            try:
-                activity= Database(key[0]).get(key[1])
-            except TypeError as err:
-                print (err)
-            CFs.append((activity, cf))
-        return CFs
-    
-    @property       
-    def description(self):
-        """Get brieft description of the impact assessment method"""
-        return self.metadata.get('description')
-    
-    @property    
-    def unit(self):
-        """Get unit of the impact assessment score"""
-        return self.metadata.get('unit')
-        
-    def __str__(self):
-        return "%s: %s used in Seshasayee's HTL project" % (self.__class__.__name__, self.name)             
 
 if 'forwast' in bw.databases:
     print("Database has already been imported.")
@@ -115,8 +64,8 @@ from bw2data.utils import download_file
 
 bw.projects.dir
 bw.bw2setup()
-    
-#ecoinvent
+
+#importing ecoinvent database
 if 'ecoinvent 3.5_cutoff_ecoSpold02' in bw.databases:
     print("Database has already been imported.")
 else:
@@ -134,12 +83,15 @@ from bw2data.utils import download_file
 
 bw.projects.dir
 bw.bw2setup()
-    
+
+#initializing the data base names
 fw = bw.Database('forwast')
 bw3 = bw.Database('biosphere3')
 eidb = bw.Database('ecoinvent 3.5_cutoff_ecoSpold02')
 print("The imported forwast database is of type {} and has a length of {}.".format(type(fw), len(fw)))
 
+#Assigning variables to each component in database (eg. water)
+#process utility
 Electricity = [act for act in eidb if 'electricity, low voltage' in act['name'] and 'US-NPCC' in act['location']][0]
 Natural_gas = eidb.search('Natural gas')[5]
 Hexane = eidb.search('hexane')[0]
@@ -171,14 +123,63 @@ Incineration_paper = fw.search('Incineration')[4]
 
 Composting = fw.search('compost')[0]
 
+#reactant
 Water = bw3.search('water')[1]
 water_fresh = eidb.search('market for water, decarbonised')[10]
 water_treatment = eidb.search('tap water production, conventional treatment')[2]
 
+#co-products
 TPA_basic = eidb.search("terephthalic")[0]
 BPA_basic = eidb.search("bisphenol")[1]
 
-print(bw.databases)
+#code returns impact method value automatically (for example: kg CO2 eq.)
+from bw2data.ia_data_store import ImpactAssessmentDataStore
+from brightway2 import methods, Method, Database
+
+class QuickMethod (ImpactAssessmentDataStore):
+    
+    _metadata = methods
+
+    def __init__(self, name):
+        self.name = name
+
+    def _write(self, data, process=True):
+        """Serialize intermediate data to disk. Sets the metadata key ``num_cfs`` automatically.From bw2; """
+        self.metadata[u"num_cfs"] = len(data)
+        self._metadata.flush()
+        super(Method, self).write(data)
+        
+    def characterization_factor(self):
+        """A method to find characterization factors of a lcia method"""
+        CFs=[]
+        for key, cf in super(QuickMethod, self).load():
+            try:
+                activity= Database(key[0]).get(key[1])
+            except TypeError as err:
+                print (err)
+            CFs.append((activity, cf))
+        return CFs
+    
+    @property       
+    def description(self):
+        """Get brieft description of the impact assessment method"""
+        return self.metadata.get('description')
+    
+    @property    
+    def unit(self):
+        """Get unit of the impact assessment score"""
+        return self.metadata.get('unit')
+        
+    def __str__(self):
+        return "%s: %s used in Seshasayee's HTL project" % (self.__class__.__name__, self.name)             
+
+#give input options if you want solid handling, BPA purification or carbon sequestration in the LCA-TEA system boundary
+global solid_handling_choice 
+solid_handling_choice = 1 #1 - yes, 0 - no
+global BPA_purification_choice
+BPA_purification_choice = 0 #1 - yes, 0 - no
+global carbon_sequestration_choice
+carbon_sequestration_choice = 1 #1 - yes, 0 - no
 
 #biochemical composition
 #input
@@ -188,15 +189,13 @@ print(bw.databases)
 
 # cellulose (%), protein (%), lipid (%), lignin (%), starch (%), massflowrate (kg/hr), costofheating ($/KJ)
 
+#thermal properties for water
 import math
 from thermo.chemical import Chemical
 water = Chemical('water')
-#PP = Chemical('polypropylene')
-#PS = Chemical('9003-53-6')
-#PC = Chemical('80-05-7')
-#PET = Chemical('25038-59-9')
 
 class class_process_model(object):
+    #class initializaton
     def __init__(self, cellulose, protein, lipid, lignin, starch, PP, PS, PC, PET, massflowrate, costofheating, desired_end_size, temperature, null):
         self.cellulose = cellulose; #(%)
         self.protein = protein; #(%)
@@ -227,7 +226,8 @@ class class_process_model(object):
         
         print ("The feedstock has: Cellulose - " + str(round(cellulose,2)) + " %, Starch - " +  str(round(starch,2)) + " %, Protein - " + str(round(protein,2)) + " %, Lignin - " + str(round(lignin,2)) + " %, Lipid - " + str(round(lipid,2))+ " %, PP - " + str(round(PP,2)) + " %, PS - " + str(round(PS,2)) + " %, PC - " + str(round(PC,2)) + " %, PET - " + str(round(PET,2)) +" % \n")
         print ("************************************************************************\n")
-
+    
+    #HTL process model: input - feedstock composition, HTL temperature, feedstock flow rate
     def HTL_process_model(self):
         print ("HTL Process Model: \n")
         
@@ -297,6 +297,8 @@ class class_process_model(object):
         #    settemperature = 425;
         #    Yield = Yieldat425;
         
+        #calculating yield, feedstock loading and reactor pressure based in input temperature and feed compostion. 
+        #Note that feedstock loading and reactor pressure are based on temperature conditions for which the model was developed.
         if temperature >= 250 and temperature < 325:
             Yield = Yieldat300;
             settemperature = 300;
@@ -323,7 +325,7 @@ class class_process_model(object):
         print ("Feedstock loading is "+str(round(feedstock_loading,2))+" % weight loading of feedstock/weight of water.")
         print ("Yield at simulated temperature is "+str(round(Yield,2))+" %\n")
         
-        #dummy values
+        #Monomer yields based on single component experiments
         TPA_yield_300 = 50;
         TPA_yield_350 = 90;
         TPA_yield_425 = 60;
@@ -333,7 +335,7 @@ class class_process_model(object):
         self.oil_yield = Yield;
         self.feedstock_loading = feedstock_loading;
 
-        #Solid yield
+        #Solid/Biochar yield
         Solid_Yieldat300=(39.30*carbohydrate+39.92*lignin+31.98*starch+2.86*protein+2.71*lipid+98.42*PP+60.26*PS+0.44*PC+93.20*PET)/100;
         Solid_Yieldat350=(14.03*carbohydrate+43.78*lignin+22.17*starch+1.09*protein+1*lipid+92.15*PP+3.06*PS+3.13*PC+81.78*PET)/100;
         Solid_Yieldat425=(52.70*carbohydrate+56.89*lignin+25.69*starch+3.90*protein+0.29*lipid+2.38*PP+1.73*PS+4.07*PC+79.74*PET)/100;
@@ -355,6 +357,7 @@ class class_process_model(object):
         Unreacted_PSat425 = 0
         Unreacted_PCat425 = 0
         
+        #more yield assignments
         if settemperature == 300:
             solid_yield = Solid_Yieldat300;
             biochar_yield = Biochar_Yieldat300
@@ -386,7 +389,8 @@ class class_process_model(object):
         Gas_Yieldat300=(41.26*carbohydrate+2.52*lignin+45.44*starch+32.95*protein+9.62*lipid+0*PP+0*PS+33.22*PC+0*PET)/100;
         Gas_Yieldat350=(73.78*carbohydrate+20.35*lignin+59.27*starch+56.55*protein+12.31*lipid+3.95*PP+3*PS+19.13*PC+7.87*PET)/100;
         Gas_Yieldat425=(43.42*carbohydrate+28.79*lignin+68.04*starch+57.95*protein+87.62*lipid+34*PP+1.24*PS+46.76*PC+5.36*PET)/100;
-
+        
+        #Gas yield assignment
         if settemperature == 300:
             Gas_yield = Gas_Yieldat300;
         elif settemperature == 350:
@@ -398,7 +402,8 @@ class class_process_model(object):
         Gas_Yieldfromplastic_at300=(0*PP+0*PS+33.22*PC+0*PET)/100;
         Gas_Yieldfromplastic_at350=(3.95*PP+3*PS+19.13*PC+7.87*PET)/100;
         Gas_Yieldfromplastic_at425=(34*PP+1.24*PS+46.76*PC+5.36*PET)/100;
-
+        
+        #Gas yield from plastic assignment
         if settemperature == 300:
             Gas_yield_fromplastic = Gas_Yieldfromplastic_at300;
         elif settemperature == 350:
@@ -406,8 +411,8 @@ class class_process_model(object):
         elif settemperature == 425:
             Gas_yield_fromplastic = Gas_Yieldfromplastic_at425;
                 
-        #product properties
-        #heating value (HHV)
+        #Product properties
+        #Heating value (HHV), Monomer yields
 
         if settemperature == 300:
             HHV_carbohydrate = 25.99;
@@ -477,6 +482,7 @@ class class_process_model(object):
 
         HHV_mixture = (HHV_carbohydrate*carbohydrateinoil + HHV_lignin*lignininoil + HHV_starch*starchinoil + HHV_protein*proteininoil + HHV_lipid*lipidinoil + HHV_PP*PPinoil + HHV_PS*PSinoil + HHV_PC*PCinoil + HHV_PET*PETinoil)/100;
         
+        #Total oil yield is = oil yield from processing at said temp + oil yield from processing plastic at higher temperature - BPA product that is included in 'Yield'
         Total_oil_yield = Yield+Oil_yield_from_unreacted_plastic-BPA_purification_choice*BPA_yield
         
         self.oil_yield = Total_oil_yield;
@@ -489,8 +495,7 @@ class class_process_model(object):
         print ("BPA yield is: ", round(BPA_yield,2))
         print ("Heating value of oil produced is "+str(round(HHV_mixture,2))+" MJ/Kg\n")
 
-        #elemental analysis
-
+        #Elemental composition calculation
         if settemperature == 300:
             #carbon
             C_carbohydrate = 65.27;
@@ -628,7 +633,7 @@ class class_process_model(object):
         self.N_mixture = N_mixture;
         self.S_mixture = S_mixture;
 
-        #light and heavy fraction produced
+        #Light and heavy fraction produced calculation
 
         if settemperature == 300:
             HF_carbohydrate = 85.45;
@@ -669,6 +674,8 @@ class class_process_model(object):
         print ("Percentage of light fraction in oil is "+str(round(Lightfraction_in_mixture,2))+" %")
         print ("Percentage of heavy fraction in oil is "+str(round(100-Lightfraction_in_mixture,2))+" %\n")
 
+        #Process energy calculation
+        #1. Heat capacity of feedstock, 2. Heat capacity of water, 3. Heat for fusion of plastics 4. Total energy for heating, 5. Energy needed for pumping and other appliances. 
         #heat capacity of carbohydrates
         exact_heatcapacity_carbohydrate = 0;
         for temp in range (25,settemperature):
@@ -802,16 +809,20 @@ class class_process_model(object):
         #print ("Heating capacity of PET is "+str(round(heatcapacity_PET,2))+" KJ/KgK. \n")
         
         #print ("Heating capacity of water is "+str(round(heatingcapacity_water,2))+" KJ/KgK.\n")
-
+        
+        #heat capacity of feedstock
         Heating_capacity_feedstock = (lipid*Average_heating_capacity_lipid+Average_heating_capacity_of_soy_protein*protein+heatcapacity_carbohydrate*carbohydrate+lignin*heatcapacity_lignin+starch*heatcapacity_starch+heatcapacity_PP*PP+heatcapacity_PS*PS+heatcapacity_PC*PC+heatcapacity_PET*PET)/100;
         print ("Heating capacity of feedstock without water is "+str(round(Heating_capacity_feedstock,2))+" KJ/KgK.")
 
+        #Percentage mass of initial slurry that is the feedstock, i.e. feedstock fraction in water
         fractionoffeedstock = feedstock_loading/(feedstock_loading+100/feedstock_loading)
         
+        #Calculate heat capacity of water
         count = 0;
         totalCp = 0;
         for temp in range(298,settemperature+273,10):
             water.calculate(T=temp, P=reactor_pressure*1E6)
+            #Approximate that constant pressure process heat capacity is same as variable pressure heat capacity
             #water.calculate(T=temp, P=(np.exp(34.494 - 4924.99/(temp+237.1))/(temp+105)**1.57)) #https://journals.ametsoc.org/view/journals/apme/57/6/jamc-d-17-0334.1.xml?tab_body=pdf
             count +=1;
             totalCp += water.Cp;
@@ -820,18 +831,22 @@ class class_process_model(object):
 
         print ("Heating capacity of water is "+str(round(averageheatingcapacity_water,2))+" KJ/KgK.")
         
+        #heat capacity of feedstock slurry
         heatingcapacityoffeed=averageheatingcapacity_water*(1-fractionoffeedstock)+Heating_capacity_feedstock*fractionoffeedstock; #J/hr
         print ("Heating capacity of feedstock with water is "+str(round(heatingcapacityoffeed,2))+" KJ/KgK.\n")
         
         self.heatingcapacityoffeed = heatingcapacityoffeed;
         
-        #heats of fusion
+        #heats of fusion for the plastics
         Heat_fusion_PP = 165; #KJ/kg https://www.researchgate.net/post/What_is_the_latent_heat_of_polypropylene#:~:text=Latent%20heat%20is%20energy%20released,peak%20temperature%20is%20459%20K.
         Heat_fusion_PS = 105.26; #KJ/kg https://onlinelibrary.wiley.com/doi/epdf/10.1002/pol.1961.1205516208
         Heat_fusion_PC = 134; #KJ/kg https://www.m-ep.co.jp/en/pdf/product/iupi_nova/physicality_04.pdf
         Heat_fusion_PET = 66.94; #KJ/kg https://journals.sagepub.com/doi/pdf/10.1177/004051756903901002
 
+        #Heat recycle value for process - derived from PNNL pilot plant study
         Heat_integration_factor = 0.9        
+        
+        #Process energy value calculation
         Energy_consumed_by_heating_capacity = heatingcapacityoffeed*(1-Heat_integration_factor)*((settemperature-25)+BPA_purification_choice*(250-25))*massflowrate*((100+feedstock_loading)/feedstock_loading)/Reactorheatingeffeciency; #kJ/hr
         Energy_consumed_by_heating_fusion = massflowrate * (PP*Heat_fusion_PP + PC*Heat_fusion_PC + PS*Heat_fusion_PS + PET*Heat_fusion_PET)/(100*Reactorheatingeffeciency) #kJ/hr
         
@@ -849,7 +864,6 @@ class class_process_model(object):
         #print ("Cost of heating reactors is " + str(round(costofheating,3)) + " $/hr or " + str(round(costpermass,3)) + " $/kg.\n")
         
         #energy recovery calculation:
-        
         Cellulose_feedstock = 18.60;
         Lignin_feedstock = 23.26;
         Starch_feedstock = 14.96;
@@ -860,10 +874,12 @@ class class_process_model(object):
         PC_feedstock = 30.25;
         PET_feedstock = 21.73;
         
+        #HHV feedstock
         HHV_feedstock = (carbohydrate*Cellulose_feedstock+lignin*Lignin_feedstock+starch*Starch_feedstock+protein*Soy_protein_feedstock+lipid*Stearic_acid_feedstock+PP*PP_feedstock+PC*PC_feedstock+PS*PS_feedstock+PET*PET_feedstock)/100;
         
         print ("The HHV of feedstock is: " + str(round(HHV_feedstock,2)) + " MJ/kg \n")
         
+        #Energy consumption per kg of HTL processed
         energyconsumedperkg_HTL = Total_Energy_per_hour/(massflowrate*1000); #MJ/kg
         self.energyconsumedperkg_HTL = energyconsumedperkg_HTL
                 
@@ -872,11 +888,12 @@ class class_process_model(object):
         print ("Energy recovery at this stage is : " + str(round(Energy_recovery,3)) + " % \n")
         print ("************************************************************************\n")
         
+        #Energy consumed in offices
         office_space = 1000 #sq. ft
         Energy_needed_for_offices = 112.5 #kg natural gas equivalent/sq. ft
         kg_natural_gas_for_office = Energy_needed_for_offices * office_space;
         
-        #electrity for HTL (pump)
+        #Electrity for HTL (pump)
                 
         differential_head = reactor_pressure*145.03*2.31 #https://www.watertechonline.com/home/article/15530072/head-and-pressure-in-pumps#:~:text=In%20simple%20terms%2C%20the%20mathematical,2.31%20equals%20head%20in%20feet. reason for the 2.31 - pressure to head conversion
         pump_effeciency = 0.6
@@ -887,6 +904,7 @@ class class_process_model(object):
         
         self.Pump_energy_needed_forHTL = Pump_energy_needed_forHTL
         
+        #Process water requirement
         recycle_effeciency = 24; #once a day
         fresh_water_needed = 100/(feedstock_loading*recycle_effeciency); #perkg basis
         
@@ -900,7 +918,8 @@ class class_process_model(object):
         Gasoline_consumption_to_HTL = Truck_distance / (truck_capacity*Mileage_MSWtrucks); #L_gasoline/kg waste
         
         return Total_oil_yield,Lightfraction_in_mixture,costofheating,C_mixture,H_mixture,N_mixture,S_mixture,O_mixture,Total_Energy_per_hour,TPA_yield, BPA_purification_choice*BPA_yield, Carbon_in_plastic_feedstock, fresh_water_needed, kg_natural_gas_for_office, Pump_energy_needed_forHTL, Gasoline_consumption_to_HTL, biochar_yield, Gas_yield,Gas_yield_fromplastic, Energy_consumed_for_unreacted_plastic_at_425
-
+    
+    #Upgrading process model: input - HTL oil yield and properties, feedstock flow rate
     def HTL_upgrading(self):
         #HTL upgrading (adapted from 4 PNNL studies)
         print ("Upgrading oil from HTL process:\n")
@@ -921,6 +940,7 @@ class class_process_model(object):
         PET = self.PET; #(%)
         heatingcapacityoffeed = self.heatingcapacityoffeed;
         
+        #Yield implications of upgrading step
         #multiplicative method
         #effectofupgrading
         change_in_C = 1.087; #increase in C in oil phase due to upgradation
@@ -949,8 +969,10 @@ class class_process_model(object):
         upgraded_oil_S = self.S_mixture * change_in_S;
         HHV_upgraded_oil = 0.3383*upgraded_oil_C+1.445*upgraded_oil_H-0.1805*upgraded_oil_O+0.0938*upgraded_oil_S+0.023*upgraded_oil_N;
 
+        #Process hydrogen consumption
         Hydrogen_requirement = massflowrate * upgraded_oil_yield * Hydrogen_consumption/1000; #kgH2/hr
         
+        #Percentage gasoline - Diesel calculation - based on averages from PNNL study
         Percentage_naptha = 100 - 0.9826*self.C_mixture - 0.1401*self.O_mixture
 
         print ("The oil blendstock is: " + str(round(Percentage_naptha,2)) + " % naptha (gasoline) and " + str(round(100-Percentage_naptha,2)) + " % diesel ")
@@ -962,25 +984,32 @@ class class_process_model(object):
         print ("S content: " + str(round(upgraded_oil_S,2)) + " wt.%\n")
         print ("Heating value is: " + str(round(HHV_upgraded_oil,2)) + " MJ/kg\n")
         
+        #Heat consumption for upgrading process - 1. Heat capacity for oil, catalyst, hydrogen, 2. Heat consumption from seperators
         temperatureforupgrading = 400; #(C)
+        
+        #heat capacity of oil
         heatcapacityoil = 1.67; #KJ/kgK
         exact_heatcapacity_oil = 0;
         for temp in range (26,temperatureforupgrading):
             exact_heatcapacity_oil += 2.2233 + 0.4144*0.001*(temp); #KJ/KgK 
         heatcapacityoil = exact_heatcapacity_oil/(temperatureforupgrading-25) #KJ/KgK   
         
+        #heat capacity of catalyst
         heatcapacity_catalyst = 0.911; #https://www.sciencedirect.com/science/article/pii/S129325580001102X?via%3Dihub
         WHSV_catalyst = 0.37 #kg. feedstock/ kg catalyst
         heat_catalyst = heatcapacity_catalyst/(WHSV_catalyst*20) #catalyst bed heated once a day
         
+        #heat capacity of hydrogen
         exact_heatcapacity_hydrogen = 0; #NIST database
         for temp in range (26,temperatureforupgrading):
             exact_heatcapacity_hydrogen += 20.79 + 0.48506*0.0000000001*(temp+273); #KJ/KgK 
         heatcapacityhydrogen = exact_heatcapacity_hydrogen/(temperatureforupgrading-25)
         
+        #heat consumption from equipement 
         Heat_for_Highpressureseperator = 0.121*massflowrate/1000; #MJ/h https://pacs.ou.edu/media/filer_public/c9/4a/c94a97ac-9609-4262-ab06-b7b2dda1c4fa/3_oil_and_gas_separation_design_manual_by_c_richard_sivalls.pdf
         Heat_for_Lowpressureseperator = 5.400; #MJ/h http://folk.ntnu.no/tomgra/Diplomer/Kylling.pdf
         
+        #Energy consumption
         Reactorheatingeffeciency = 0.8
         Energy_required_for_heating = ((massflowrate * upgraded_oil_yield * (heatcapacityoil + Hydrogen_consumption*heatcapacityhydrogen+heat_catalyst) * (temperatureforupgrading-25))/100000 +Heat_for_Highpressureseperator + Heat_for_Lowpressureseperator)/Reactorheatingeffeciency; #MJ/h
         Energy_needed_perkg_basis = Energy_required_for_heating/massflowrate; #MJ/kg
@@ -991,7 +1020,6 @@ class class_process_model(object):
         print("The heating energy per kg for upgrading is " + str(round(Energy_for_heating,3)) + " MJ/kg \n")
         
         #energy recovery calculation:
-        
         Cellulose_feedstock = 18.60;
         Lignin_feedstock = 23.26;
         Starch_feedstock = 14.96;
@@ -1009,6 +1037,7 @@ class class_process_model(object):
         print ("Energy recovery at this stage is : " + str(round(Energy_recovery,3)) + " % \n")
         print ("************************************************************************\n")
 
+        #Process electricity consumption
         #pump energy
         #pump_head = 75; #m
         #Energyofpump = massflowrate * (upgraded_oil_yield/100) * pump_head * 9.8/1000; #MJ/h
@@ -1028,6 +1057,7 @@ class class_process_model(object):
         EmmisionperkgH2 = 11.23; #kg CO2/ kg H2 produced cite: https://www.iea.org/fuels-and-technologies/hydrogen
         Emmision_from_H2 = EmmisionperkgH2 * Hydrogen_requirement/massflowrate; #kg CO2/ kg feedstock
         
+        #Transport
         #HTL_oil_to_upgrading facility
         Mileage_tankers = 6; #milespergallon https://www.truckloadindexes.com/data-commentary/how-many-gallons-does-it-take-to-fill-up-a-big-rig#:~:text=How%20far%20can%20a%20big,consumption%20rate%20of%206%20mpg.
         truck_capacity = 3500*3.78*0.87; #kg https://en.wikipedia.org/wiki/Tank_truck
@@ -1046,12 +1076,12 @@ class class_process_model(object):
         PET = self.PET
         massflowrate = self.massflowrate;
         solid_yield = self.solid_yield;
-        IMS_value = 702.3; #2019
+        IMS_value = 702.3; #2022
         CMS_value = 567;
         Solvent_recovery = 0.982; #https://www.sciencedirect.com/science/article/pii/S0959652620327918
         recycle_effeciency = massflowrate * 20;
                 
-        if solid_handling_opt == 0:
+        if solid_handling_opt == 0: #DMSO dissolution
             DMSO_solubility = 0.20 #g TPA/g DMSO
             DMSO_needed = self.TPA_yield/(DMSO_solubility*100); #per kg feedstock
             Evaporator_energy_effeciency = 0.6;
@@ -1390,7 +1420,7 @@ class class_process_model(object):
         BPA_process_yield = 0.9;
         flowrate = Oil_250C_yield*massflowrate/100
         eluent_flowrate = 10*flowrate
-        IMS_value = 702.3; #2019
+        IMS_value = 702.3; #2022
         CMS_value = 567;
         Chromotograph_capitol_cost = 187867.60 #$ for 476 L/hr system https://pubs.rsc.org/en/content/articlelanding/2013/GC/C2GC36239B#cit42
         scaling_factor = 0.80
@@ -1751,7 +1781,7 @@ class class_process_model(object):
         feedstock_loading=self.feedstock_loading;
         Reactorheatingeffeciency = 0.8 #assumption (fraction)
         timeofprocessing = 30; #mins
-        IMS_value = 702.3; #2019
+        IMS_value = 702.3; #2022
 
         #All information obtained from the Seider text book unless said otherwise
         
@@ -1886,7 +1916,7 @@ class class_process_model(object):
         print ("Cp Solid handling feed tank:\t\t $", round(solid_handling_choice*self.SHCp_feed_tank/10**6,2), "millions or ", "{:e}".format(solid_handling_choice*self.SHCp_feed_tank))
         print ("Cp Solid handling open tank:\t\t $", round(solid_handling_choice*self.SHCp_open_tank/10**6,2), "millions or ", "{:e}".format(solid_handling_choice*self.SHCp_open_tank))
        
-        print ("\nTotal purchase cost for 2019 is: $", round(Purchase_cost/10**6,2), "millions or ", "{:e}".format(Purchase_cost))
+        print ("\nTotal purchase cost for 2022 is: $", round(Purchase_cost/10**6,2), "millions or ", "{:e}".format(Purchase_cost))
                 
         cbm_heater = 1.86;
         cbm_heat_exchanger = 1.80
