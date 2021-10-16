@@ -21,12 +21,12 @@ Cp (cal/kmol)	48.03	48.94	69.32	48.52	36.13	32.4	35.2	56.92	51.73	40.34
 heat capacity of protein =  (∑▒〖〖C_p〗_(amino acid) (in KJ/KgK) ×amino acid composition (wt.%)〗)/100
 
 For lipids, we calculated the average of heat capacities from 6 different lipids. 
-        *List Cp grapeseed oil = 2.081 KJ/kgK
-        *List Cp almond oil = 2.103 KJ/kgK
-        *List Cp vegetable oil = 2.081 KJ/kgK
-        *List Cp olive oil = 2.116 KJ/kgK
-        *List Cp cocoa butter = 2.143 KJ/kgK
-        *List Cp coconut oil = 2.111 KJ/kgK
+* Cp grapeseed oil = 2.081 KJ/kgK
+* Cp almond oil = 2.103 KJ/kgK
+* Cp vegetable oil = 2.081 KJ/kgK
+* Cp olive oil = 2.116 KJ/kgK
+* Cp cocoa butter = 2.143 KJ/kgK
+* Cp coconut oil = 2.111 KJ/kgK
 
 Average Cp lipid = 2.106; #KJ/kgK
 
